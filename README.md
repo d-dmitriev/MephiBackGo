@@ -100,6 +100,12 @@ go mod download
 go run main.go
 ```
 
+или
+
+```bash
+docker compose up -d
+```
+
 Сервис будет доступен на порту `:8080`.
 
 ---
@@ -134,3 +140,21 @@ go run main.go
 ## 🕒 Шедулер
 
 Каждые 12 часов автоматически обрабатываются просроченные платежи и начисляются штрафы (+10%).
+
+## 📋 Как протестировать API
+
+Используйте `curl` или Postman:
+
+### Регистрация
+
+```bash
+curl -X POST http://localhost:8080/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "username": "testuser", "password": "password"}'
+```
+### Авторизация
+```bash
+curl -X POST http://localhost:8080/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "password"}'
+```
