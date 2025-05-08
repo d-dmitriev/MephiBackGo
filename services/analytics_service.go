@@ -1,18 +1,28 @@
 package services
 
 import (
+	"bank-api/repositories"
 	"bank-api/utils"
 	"fmt"
 	"time"
 
-	"bank-api/db"
 	"bank-api/models"
 )
 
-type AnalyticsService struct{}
+type AnalyticsService struct {
+	creditRepo          repositories.CreditRepository
+	accountRepo         repositories.AccountRepository
+	transactionRepo     repositories.TransactionRepository
+	paymentScheduleRepo repositories.PaymentScheduleRepository
+}
 
-func NewAnalyticsService() *AnalyticsService {
-	return &AnalyticsService{}
+func NewAnalyticsService(creditRepo repositories.CreditRepository, accountRepo repositories.AccountRepository, transactionRepo repositories.TransactionRepository, paymentScheduleRepo repositories.PaymentScheduleRepository) *AnalyticsService {
+	return &AnalyticsService{
+		creditRepo:          creditRepo,
+		accountRepo:         accountRepo,
+		transactionRepo:     transactionRepo,
+		paymentScheduleRepo: paymentScheduleRepo,
+	}
 }
 
 // GetMonthlyStats — получает статистику доходов и расходов за последний месяц
@@ -25,13 +35,10 @@ func (s *AnalyticsService) GetMonthlyStats(userID string) (*models.MonthlyStats,
 	now := time.Now()
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 
-	var transactions []models.Transaction
-	result := db.DB.Where("sender_user_id = ? OR receiver_user_id = ?", userIDUint, userIDUint).
-		Where("created_at >= ?", startOfMonth.Format(time.RFC3339)).
-		Find(&transactions)
+	transactions, err := s.transactionRepo.GetAllBySenderOrReceiverAfterDate(userIDUint, startOfMonth)
 
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to get transactions: %v", result.Error)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transactions: %v", err)
 	}
 
 	stats := &models.MonthlyStats{
@@ -72,10 +79,9 @@ func (s *AnalyticsService) GetCreditLoad(userID string) (*models.CreditLoad, err
 		return nil, fmt.Errorf("invalid user ID: %v", err)
 	}
 
-	var credits []models.Credit
-	result := db.DB.Where("user_id = ?", userIDUint).Find(&credits)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to get credits: %v", result.Error)
+	credits, err := s.creditRepo.GetCredits(userIDUint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get credits: %v", err)
 	}
 
 	load := &models.CreditLoad{
@@ -87,7 +93,7 @@ func (s *AnalyticsService) GetCreditLoad(userID string) (*models.CreditLoad, err
 		CreditUtilization: 0,
 	}
 
-	now := time.Now().Format(time.RFC3339)
+	now := time.Now()
 
 	var totalInterest float64
 	var activeCount int
@@ -112,12 +118,10 @@ func (s *AnalyticsService) GetCreditLoad(userID string) (*models.CreditLoad, err
 	}
 
 	// Получаем ближайшие платежи
-	var schedules []models.PaymentSchedule
-	db.DB.Where("credit_id IN (?)", db.DB.Model(&models.Credit{}).Where("user_id = ?", userIDUint).Select("id")).
-		Where("status = 'pending' AND due_date <= ?", now).
-		Order("due_date ASC").
-		Limit(5).
-		Find(&schedules)
+	schedules, err := s.paymentScheduleRepo.GetPendingPaymentsByUserAndDate(userIDUint, now)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedules: %v", err)
+	}
 
 	for _, s := range schedules {
 		load.UpcomingPayments += s.AmountDue
@@ -137,8 +141,10 @@ func (s *AnalyticsService) PredictBalance(userID string, days int) (*models.Bala
 		return nil, fmt.Errorf("invalid user ID: %v", err)
 	}
 
-	var accounts []models.Account
-	db.DB.Where("user_id = ?", userIDUint).Find(&accounts)
+	accounts, err := s.accountRepo.GetAccounts(userIDUint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accounts: %v", err)
+	}
 
 	prediction := &models.BalancePrediction{
 		Days:           days,

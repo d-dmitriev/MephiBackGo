@@ -1,9 +1,10 @@
 package repositories
 
 import (
+	"bank-api/db"
 	"bank-api/models"
-	"fmt"
 	"gorm.io/gorm"
+	"time"
 )
 
 // paymentScheduleRepository — реализация через GORM
@@ -22,9 +23,8 @@ func GetPaymentScheduleRepository(db *gorm.DB) PaymentScheduleRepository {
 
 // Create — сохраняет новый график платежа
 func (r *paymentScheduleRepository) Create(schedule *models.PaymentSchedule) error {
-	result := r.DB.Create(schedule)
-	if result.Error != nil {
-		return result.Error
+	if err := r.DB.Create(schedule).Error; err != nil {
+		return err
 	}
 	return nil
 }
@@ -32,9 +32,8 @@ func (r *paymentScheduleRepository) Create(schedule *models.PaymentSchedule) err
 // GetByCreditID — получает все записи графика по ID кредита
 func (r *paymentScheduleRepository) GetByCreditID(creditID uint) ([]models.PaymentSchedule, error) {
 	var schedules []models.PaymentSchedule
-	result := r.DB.Where("credit_id = ?", creditID).Find(&schedules)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := r.DB.Where("credit_id = ?", creditID).Find(&schedules).Error; err != nil {
+		return nil, err
 	}
 	return schedules, nil
 }
@@ -42,23 +41,20 @@ func (r *paymentScheduleRepository) GetByCreditID(creditID uint) ([]models.Payme
 // GetPendingByUserID — получает все незавершённые платежи пользователя
 func (r *paymentScheduleRepository) GetPendingByUserID(userID uint) ([]models.PaymentSchedule, error) {
 	var schedules []models.PaymentSchedule
-	result := r.DB.Table("payment_schedules").
+	if err := r.DB.Table("payment_schedules").
 		Joins("JOIN credits ON payment_schedules.credit_id = credits.id").
 		Where("credits.user_id = ? AND payment_schedules.status IN ('pending', 'overdue')", userID).
 		Order("due_date ASC").
-		Find(&schedules)
-
-	if result.Error != nil {
-		return nil, result.Error
+		Find(&schedules).Error; err != nil {
+		return nil, err
 	}
 	return schedules, nil
 }
 
 // Update — обновляет запись в графике платежей
 func (r *paymentScheduleRepository) Update(schedule *models.PaymentSchedule) error {
-	result := r.DB.Save(schedule)
-	if result.Error != nil {
-		return result.Error
+	if err := r.DB.Save(schedule).Error; err != nil {
+		return err
 	}
 	return nil
 }
@@ -66,12 +62,21 @@ func (r *paymentScheduleRepository) Update(schedule *models.PaymentSchedule) err
 // GetPendingPayments — получает все платежи со статусом "pending" или "overdue"
 func (r *paymentScheduleRepository) GetPendingPayments() ([]models.PaymentSchedule, error) {
 	var schedules []models.PaymentSchedule
-
 	// Выбираем только те платежи, у которых статус pending или overdue
-	result := r.DB.Where("status IN (?)", []string{"pending", "overdue"}).Find(&schedules)
-	if result.Error != nil {
-		return nil, fmt.Errorf("failed to get pending payments: %v", result.Error)
+	if err := r.DB.Where("status IN (?)", []string{"pending", "overdue"}).Find(&schedules).Error; err != nil {
+		return nil, err
 	}
+	return schedules, nil
+}
 
+func (r *paymentScheduleRepository) GetPendingPaymentsByUserAndDate(userIDUint uint, date time.Time) ([]models.PaymentSchedule, error) {
+	var schedules []models.PaymentSchedule
+	if err := db.DB.Where("credit_id IN (?)", db.DB.Model(&models.Credit{}).Where("user_id = ?", userIDUint).Select("id")).
+		Where("status = 'pending' AND due_date <= ?", date.Format(time.RFC3339)).
+		Order("due_date ASC").
+		Limit(5).
+		Find(&schedules).Error; err != nil {
+		return nil, err
+	}
 	return schedules, nil
 }

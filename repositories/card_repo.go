@@ -21,18 +21,16 @@ func GetCardRepository(db *gorm.DB) CardRepository {
 }
 
 func (c *cardRepository) IssueCard(card *models.Card) (*models.Card, error) {
-	result := c.DB.Create(card)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := c.DB.Create(card).Error; err != nil {
+		return nil, err
 	}
 	return card, nil
 }
 
 func (c *cardRepository) GetCards(userIDUint uint) ([]models.Card, error) {
 	var cards []models.Card
-	result := c.DB.Where("user_id = ?", userIDUint).Find(&cards)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := c.DB.Where("user_id = ?", userIDUint).Find(&cards).Error; err != nil {
+		return nil, err
 	}
 	return cards, nil
 }

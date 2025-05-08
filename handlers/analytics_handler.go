@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bank-api/db"
+	"bank-api/repositories"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -22,7 +24,11 @@ func GetAnalytics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	analyticsService := services.NewAnalyticsService()
+	creditRepo := repositories.GetCreditRepository(db.DB)
+	accountRepo := repositories.GetAccountRepository(db.DB)
+	transactionRepo := repositories.GetTransactionRepository(db.DB)
+	paymentScheduleRepo := repositories.GetPaymentScheduleRepository(db.DB)
+	analyticsService := services.NewAnalyticsService(creditRepo, accountRepo, transactionRepo, paymentScheduleRepo)
 
 	stats, _ := analyticsService.GetMonthlyStats(userID)
 	creditLoad, _ := analyticsService.GetCreditLoad(userID)

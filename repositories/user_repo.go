@@ -22,9 +22,8 @@ func GetUserRepository(db *gorm.DB) UserRepository {
 
 // Create — сохраняет нового пользователя в БД
 func (u *userRepository) Create(user *models.User) error {
-	result := u.DB.Create(user)
-	if result.Error != nil {
-		return result.Error
+	if err := u.DB.Create(user).Error; err != nil {
+		return err
 	}
 	return nil
 }
@@ -32,9 +31,8 @@ func (u *userRepository) Create(user *models.User) error {
 // FindByEmail — ищет пользователя по email
 func (u *userRepository) FindByEmail(email string) (*models.User, error) {
 	var user models.User
-	result := u.DB.Where("email = ?", email).First(&user)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := u.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
 	}
 	return &user, nil
 }
@@ -42,9 +40,8 @@ func (u *userRepository) FindByEmail(email string) (*models.User, error) {
 // FindByID — ищет пользователя по ID
 func (u *userRepository) FindByID(id uint) (*models.User, error) {
 	var user models.User
-	result := u.DB.First(&user, id)
-	if result.Error != nil {
-		return nil, result.Error
+	if err := u.DB.First(&user, id).Error; err != nil {
+		return nil, err
 	}
 	return &user, nil
 }
