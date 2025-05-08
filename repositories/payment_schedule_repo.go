@@ -12,13 +12,8 @@ type paymentScheduleRepository struct {
 	DB *gorm.DB
 }
 
-var globalPaymentScheduleRepo PaymentScheduleRepository
-
-func GetPaymentScheduleRepository(db *gorm.DB) PaymentScheduleRepository {
-	if globalPaymentScheduleRepo == nil {
-		globalPaymentScheduleRepo = &paymentScheduleRepository{DB: db}
-	}
-	return globalPaymentScheduleRepo
+func NewPaymentScheduleRepository(db *gorm.DB) PaymentScheduleRepository {
+	return &paymentScheduleRepository{DB: db}
 }
 
 // Create — сохраняет новый график платежа

@@ -12,14 +12,9 @@ type transactionRepository struct {
 	DB *gorm.DB
 }
 
-var globalTransactionRepo TransactionRepository
-
-// GetTransactionRepository — фабрика для создания репозитория
-func GetTransactionRepository(db *gorm.DB) TransactionRepository {
-	if globalTransactionRepo == nil {
-		globalTransactionRepo = &transactionRepository{DB: db}
-	}
-	return globalTransactionRepo
+// NewTransactionRepository — фабрика для создания репозитория
+func NewTransactionRepository(db *gorm.DB) TransactionRepository {
+	return &transactionRepository{DB: db}
 }
 
 func (t *transactionRepository) Create(transaction *models.Transaction) error {

@@ -10,14 +10,9 @@ type userRepository struct {
 	DB *gorm.DB
 }
 
-var globalUserRepo UserRepository
-
-// GetUserRepository — фабрика для создания репозитория
-func GetUserRepository(db *gorm.DB) UserRepository {
-	if globalUserRepo == nil {
-		globalUserRepo = &userRepository{DB: db}
-	}
-	return globalUserRepo
+// NewUserRepository — фабрика для создания репозитория
+func NewUserRepository(db *gorm.DB) UserRepository {
+	return &userRepository{DB: db}
 }
 
 // Create — сохраняет нового пользователя в БД

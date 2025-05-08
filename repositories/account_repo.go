@@ -10,14 +10,9 @@ type accountRepository struct {
 	DB *gorm.DB
 }
 
-var globalAccountRepo AccountRepository
-
-// GetAccountRepository — фабрика для создания репозитория
-func GetAccountRepository(db *gorm.DB) AccountRepository {
-	if globalAccountRepo == nil {
-		globalAccountRepo = &accountRepository{DB: db}
-	}
-	return globalAccountRepo
+// NewAccountRepository — фабрика для создания репозитория
+func NewAccountRepository(db *gorm.DB) AccountRepository {
+	return &accountRepository{DB: db}
 }
 
 func (a *accountRepository) Create(account *models.Account) error {

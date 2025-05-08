@@ -11,14 +11,9 @@ type creditRepository struct {
 	DB *gorm.DB
 }
 
-var globalCreditRepo CreditRepository
-
-// GetCreditRepository — фабрика для создания репозитория
-func GetCreditRepository(db *gorm.DB) CreditRepository {
-	if globalCreditRepo == nil {
-		globalCreditRepo = &creditRepository{DB: db}
-	}
-	return globalCreditRepo
+// NewCreditRepository — фабрика для создания репозитория
+func NewCreditRepository(db *gorm.DB) CreditRepository {
+	return &creditRepository{DB: db}
 }
 
 func (c *creditRepository) Create(credit *models.Credit) error {

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"bank-api/db"
 	"bank-api/integrations"
 	"bank-api/repositories"
 	"errors"
@@ -16,15 +15,18 @@ import (
 type TransactionService struct {
 	DB          *gorm.DB
 	accountRepo repositories.AccountRepository
+	userRepo    repositories.UserRepository
 }
 
 func NewTransactionService(
 	db *gorm.DB,
 	accountRepo repositories.AccountRepository,
+	userRepo repositories.UserRepository,
 ) *TransactionService {
 	return &TransactionService{
 		DB:          db,
 		accountRepo: accountRepo,
+		userRepo:    userRepo,
 	}
 }
 
@@ -103,10 +105,10 @@ func (t *TransactionService) Transfer(userID string, fromAccountID, toAccountID 
 	}
 
 	// Отправляем email-уведомление
-	userEmail := getUserEmail(userIDUint)
-	if userEmail != "" {
+	user, _ := t.userRepo.FindByID(userIDUint)
+	if user != nil {
 		integrations.SendEmail(
-			userEmail,
+			user.Email,
 			"Перевод успешно выполнен",
 			fmt.Sprintf(`
                 <h2>Успешный перевод</h2>
@@ -117,13 +119,4 @@ func (t *TransactionService) Transfer(userID string, fromAccountID, toAccountID 
 	}
 
 	return nil
-}
-
-// Helper: получить email пользователя (временно заглушка)
-func getUserEmail(userID uint) string {
-	user, _ := repositories.GetUserRepository(db.DB).FindByID(userID)
-	if user != nil {
-		return user.Email
-	}
-	return ""
 }

@@ -30,19 +30,19 @@ func main() {
 
 	r := mux.NewRouter()
 
-	userRepo := repositories.GetUserRepository(db.DB)
-	cardRepo := repositories.GetCardRepository(db.DB)
-	creditRepo := repositories.GetCreditRepository(db.DB)
-	accountRepo := repositories.GetAccountRepository(db.DB)
-	transactionRepo := repositories.GetTransactionRepository(db.DB)
-	paymentScheduleRepo := repositories.GetPaymentScheduleRepository(db.DB)
+	userRepo := repositories.NewUserRepository(db.DB)
+	cardRepo := repositories.NewCardRepository(db.DB)
+	creditRepo := repositories.NewCreditRepository(db.DB)
+	accountRepo := repositories.NewAccountRepository(db.DB)
+	transactionRepo := repositories.NewTransactionRepository(db.DB)
+	paymentScheduleRepo := repositories.NewPaymentScheduleRepository(db.DB)
 
 	authService := services.NewAuthService(userRepo)
 	accountService := services.NewAccountService(accountRepo, transactionRepo)
 	analyticsService := services.NewAnalyticsService(creditRepo, accountRepo, transactionRepo, paymentScheduleRepo)
 	cardService := services.NewCardService(cardRepo)
 	creditService := services.NewCreditService(paymentScheduleRepo, accountRepo, creditRepo)
-	transactionService := services.NewTransactionService(db.DB, accountRepo)
+	transactionService := services.NewTransactionService(db.DB, accountRepo, userRepo)
 
 	userHandler := handlers.NewUserHandler(authService, utils.Logger)
 	cardHandler := handlers.NewCardHandler(cardService, utils.Logger)

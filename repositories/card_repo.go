@@ -10,14 +10,9 @@ type cardRepository struct {
 	DB *gorm.DB
 }
 
-var globalCardRepo CardRepository
-
-// GetCardRepository — фабрика для создания репозитория
-func GetCardRepository(db *gorm.DB) CardRepository {
-	if globalCardRepo == nil {
-		globalCardRepo = &cardRepository{DB: db}
-	}
-	return globalCardRepo
+// NewCardRepository — фабрика для создания репозитория
+func NewCardRepository(db *gorm.DB) CardRepository {
+	return &cardRepository{DB: db}
 }
 
 func (c *cardRepository) IssueCard(card *models.Card) (*models.Card, error) {
