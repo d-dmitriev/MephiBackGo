@@ -2,6 +2,7 @@ package services
 
 import (
 	"bank-api/db"
+	"bank-api/integrations"
 	"bank-api/repositories"
 	"errors"
 	"fmt"
@@ -104,7 +105,7 @@ func (t *TransactionService) Transfer(userID string, fromAccountID, toAccountID 
 	// Отправляем email-уведомление
 	userEmail := getUserEmail(userIDUint)
 	if userEmail != "" {
-		utils.SendEmail(
+		integrations.SendEmail(
 			userEmail,
 			"Перевод успешно выполнен",
 			fmt.Sprintf(`

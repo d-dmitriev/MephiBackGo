@@ -4,6 +4,8 @@ import (
 	"bank-api/config"
 	"bank-api/db"
 	"bank-api/models"
+	"bank-api/repositories"
+	"bank-api/services"
 	"bank-api/utils"
 	"log"
 	"net/http"
@@ -28,22 +30,44 @@ func main() {
 
 	r := mux.NewRouter()
 
+	userRepo := repositories.GetUserRepository(db.DB)
+	cardRepo := repositories.GetCardRepository(db.DB)
+	creditRepo := repositories.GetCreditRepository(db.DB)
+	accountRepo := repositories.GetAccountRepository(db.DB)
+	transactionRepo := repositories.GetTransactionRepository(db.DB)
+	paymentScheduleRepo := repositories.GetPaymentScheduleRepository(db.DB)
+
+	authService := services.NewAuthService(userRepo)
+	accountService := services.NewAccountService(accountRepo, transactionRepo)
+	analyticsService := services.NewAnalyticsService(creditRepo, accountRepo, transactionRepo, paymentScheduleRepo)
+	cardService := services.NewCardService(cardRepo)
+	creditService := services.NewCreditService(paymentScheduleRepo, accountRepo, creditRepo)
+	transactionService := services.NewTransactionService(db.DB, accountRepo)
+
+	userHandler := handlers.NewUserHandler(authService, utils.Logger)
+	cardHandler := handlers.NewCardHandler(cardService, utils.Logger)
+	accountHandler := handlers.NewAccountHandler(accountService, utils.Logger)
+	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, utils.Logger)
+	cbrHandler := handlers.NewCbrHandler(creditService, utils.Logger)
+	creditHandler := handlers.NewCreditHandler(creditService, utils.Logger)
+	transactionHandler := handlers.NewTransactionHandler(transactionService, utils.Logger)
+
 	// Public routes
-	r.HandleFunc("/register", handlers.Register).Methods("POST")
-	r.HandleFunc("/login", handlers.Login).Methods("POST")
-	r.HandleFunc("/cbr/keyrate", handlers.GetKeyRate).Methods("GET")
+	r.HandleFunc("/register", userHandler.Register).Methods("POST")
+	r.HandleFunc("/login", userHandler.Login).Methods("POST")
+	r.HandleFunc("/cbr/keyrate", cbrHandler.GetKeyRate).Methods("GET")
 
 	// Protected routes
 	protected := r.PathPrefix("/").Subrouter()
 	protected.Use(middleware.AuthMiddleware)
-	protected.HandleFunc("/accounts", handlers.GetAccounts).Methods("GET")
-	protected.HandleFunc("/accounts", handlers.CreateAccount).Methods("POST")
-	protected.HandleFunc("/accounts/{id}", handlers.UpdateAccount).Methods("PUT")
-	protected.HandleFunc("/cards", handlers.GetCards).Methods("GET")
-	protected.HandleFunc("/cards", handlers.IssueCard).Methods("POST")
-	protected.HandleFunc("/transfer", handlers.TransferFunds).Methods("POST")
-	protected.HandleFunc("/analytics", handlers.GetAnalytics).Methods("GET")
-	protected.HandleFunc("/credits", handlers.ApplyForCredit).Methods("POST")
+	protected.HandleFunc("/accounts", accountHandler.GetAccounts).Methods("GET")
+	protected.HandleFunc("/accounts", accountHandler.CreateAccount).Methods("POST")
+	protected.HandleFunc("/accounts/{id}", accountHandler.UpdateAccount).Methods("PUT")
+	protected.HandleFunc("/cards", cardHandler.GetCards).Methods("GET")
+	protected.HandleFunc("/cards", cardHandler.IssueCard).Methods("POST")
+	protected.HandleFunc("/transfer", transactionHandler.TransferFunds).Methods("POST")
+	protected.HandleFunc("/analytics", analyticsHandler.GetAnalytics).Methods("GET")
+	protected.HandleFunc("/credits", creditHandler.ApplyForCredit).Methods("POST")
 
 	finalRouter := middleware.LoggingMiddleware(r)
 

@@ -13,7 +13,7 @@ import (
 
 const cbrSoapURL = "https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx"
 
-// buildSOAPRequest — строит XML-запрос для получения ключевой ставки
+// BuildSOAPRequest — строит XML-запрос для получения ключевой ставки
 func BuildSOAPRequest() string {
 	fromDate := time.Now().AddDate(0, 0, -30).Format("2006-01-02")
 	toDate := time.Now().Format("2006-01-02")

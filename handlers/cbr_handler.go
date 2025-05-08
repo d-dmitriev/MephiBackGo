@@ -1,22 +1,30 @@
 package handlers
 
 import (
-	"bank-api/db"
-	"bank-api/repositories"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net/http"
 
 	"bank-api/services"
 )
 
-func GetKeyRate(w http.ResponseWriter, r *http.Request) {
-	accRepo := repositories.GetAccountRepository(db.DB)
-	paymentRepo := repositories.GetPaymentScheduleRepository(db.DB)
-	creditRepo := repositories.GetCreditRepository(db.DB)
-	creditService := services.NewCreditService(paymentRepo, accRepo, creditRepo)
-	rate, err := creditService.GetKeyRateWithMargin()
+type CbrHandler struct {
+	creditService *services.CreditService
+	logger        *logrus.Logger
+}
+
+func NewCbrHandler(creditService *services.CreditService, logger *logrus.Logger) *CbrHandler {
+	return &CbrHandler{
+		creditService: creditService,
+		logger:        logger,
+	}
+}
+
+func (c *CbrHandler) GetKeyRate(w http.ResponseWriter, r *http.Request) {
+	rate, err := c.creditService.GetKeyRateWithMargin()
 	if err != nil {
+		c.logger.Warnf("Failed to get key rate: " + err.Error())
 		http.Error(w, "Failed to get key rate: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -1,27 +1,40 @@
 package handlers
 
 import (
-	"bank-api/db"
-	"bank-api/repositories"
 	"bank-api/services"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 )
 
-// CreateAccountHandler — обработчик создания банковского счёта
-func CreateAccount(w http.ResponseWriter, r *http.Request) {
+type AccountHandler struct {
+	accountService *services.AccountService
+	logger         *logrus.Logger
+}
+
+func NewAccountHandler(accountService *services.AccountService, logger *logrus.Logger) *AccountHandler {
+	return &AccountHandler{
+		accountService: accountService,
+		logger:         logger,
+	}
+}
+
+// CreateAccount — обработчик создания банковского счёта
+func (a *AccountHandler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	// Получаем userID из контекста безопасно
 	userIDInterface := r.Context().Value("userID")
 	if userIDInterface == nil {
+		a.logger.Warnf("Unauthorized: %v", userIDInterface)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	userID, ok := userIDInterface.(string)
 	if !ok {
+		a.logger.Warnf("Invalid user ID type: %v", userID)
 		http.Error(w, "Invalid user ID type", http.StatusInternalServerError)
 		return
 	}
@@ -32,21 +45,20 @@ func CreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		a.logger.Warnf("Invalid request body")
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.Type == "" {
+		a.logger.Warnf("Missing account type")
 		http.Error(w, "Missing account type", http.StatusBadRequest)
 		return
 	}
 
-	acc := repositories.GetAccountRepository(db.DB)
-	txn := repositories.GetTransactionRepository(db.DB)
-	accountService := services.NewAccountService(acc, txn)
-
-	err := accountService.CreateAccount(userID, req.Type)
+	err := a.accountService.CreateAccount(userID, req.Type)
 	if err != nil {
+		a.logger.Warnf("Failed to create account: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create account: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -55,26 +67,25 @@ func CreateAccount(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Account created"})
 }
 
-func GetAccounts(w http.ResponseWriter, r *http.Request) {
+func (a *AccountHandler) GetAccounts(w http.ResponseWriter, r *http.Request) {
 	userIDInterface := r.Context().Value("userID")
 	if userIDInterface == nil {
+		a.logger.Warnf("Unauthorized: %v", userIDInterface)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	userID, ok := userIDInterface.(string)
 	if !ok {
+		a.logger.Warnf("Invalid user ID type: %v", userID)
 		http.Error(w, "Invalid user ID type", http.StatusInternalServerError)
 		return
 	}
 
-	acc := repositories.GetAccountRepository(db.DB)
-	txn := repositories.GetTransactionRepository(db.DB)
-	accountService := services.NewAccountService(acc, txn)
-
-	accounts, err := accountService.GetAccounts(userID)
+	accounts, err := a.accountService.GetAccounts(userID)
 
 	if err != nil {
+		a.logger.Warnf("Login failed: %v", err.Error())
 		http.Error(w, "Login failed: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -83,7 +94,7 @@ func GetAccounts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(accounts)
 }
 
-func UpdateAccount(w http.ResponseWriter, r *http.Request) {
+func (a *AccountHandler) UpdateAccount(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID счёта из URL
 	vars := mux.Vars(r)
 	accountIDStr := vars["id"]
@@ -91,6 +102,7 @@ func UpdateAccount(w http.ResponseWriter, r *http.Request) {
 	// Конвертируем в uint
 	accountID, err := strconv.ParseUint(accountIDStr, 10, 64)
 	if err != nil {
+		a.logger.Warnf("Invalid account ID: %v", accountID)
 		http.Error(w, "Invalid account ID", http.StatusBadRequest)
 		return
 	}
@@ -101,25 +113,25 @@ func UpdateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		a.logger.Warnf("Invalid request body")
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	acc := repositories.GetAccountRepository(db.DB)
-	txn := repositories.GetTransactionRepository(db.DB)
-	accountService := services.NewAccountService(acc, txn)
-
 	if req.Amount > 0 {
-		if err := accountService.Deposit(uint(accountID), req.Amount); err != nil {
+		if err := a.accountService.Deposit(uint(accountID), req.Amount); err != nil {
+			a.logger.Warnf("Failed to update balance: %v", err.Error())
 			http.Error(w, "Failed to update balance: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else if req.Amount < 0 {
-		if err := accountService.Withdraw(uint(accountID), -req.Amount); err != nil {
+		if err := a.accountService.Withdraw(uint(accountID), -req.Amount); err != nil {
+			a.logger.Warnf("Failed to update balance: %v", err.Error())
 			http.Error(w, "Failed to update balance: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	} else {
+		a.logger.Warnf("Invalid amount")
 		http.Error(w, "Invalid amount", http.StatusBadRequest)
 		return
 	}

@@ -1,16 +1,27 @@
 package handlers
 
 import (
-	"bank-api/db"
-	"bank-api/repositories"
 	"bank-api/services"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
+type TransactionHandler struct {
+	transactionService *services.TransactionService
+	logger             *logrus.Logger
+}
+
+func NewTransactionHandler(transactionService *services.TransactionService, logger *logrus.Logger) *TransactionHandler {
+	return &TransactionHandler{
+		transactionService: transactionService,
+		logger:             logger,
+	}
+}
+
 // TransferFunds — обработчик перевода средств
-func TransferFunds(w http.ResponseWriter, r *http.Request) {
+func (t *TransactionHandler) TransferFunds(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("userID").(string)
 
 	var req struct {
@@ -21,20 +32,20 @@ func TransferFunds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		t.logger.Warnf("Invalid request body")
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if req.FromAccountID == 0 || req.ToAccountID == 0 || req.Amount <= 0 {
+		t.logger.Warnf("Invalid transfer parameters")
 		http.Error(w, "Invalid transfer parameters", http.StatusBadRequest)
 		return
 	}
 
-	accRepo := repositories.GetAccountRepository(db.DB)
-	transferService := services.NewTransactionService(db.DB, accRepo)
-
-	err := transferService.Transfer(userID, req.FromAccountID, req.ToAccountID, req.Amount, req.Description)
+	err := t.transactionService.Transfer(userID, req.FromAccountID, req.ToAccountID, req.Amount, req.Description)
 	if err != nil {
+		t.logger.Warnf("Transfer failed: %v", err)
 		http.Error(w, fmt.Sprintf("Transfer failed: %v", err), http.StatusInternalServerError)
 		return
 	}
